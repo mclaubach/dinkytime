@@ -1,13 +1,31 @@
 export async function onRequest(context: any) {
-  const response = await context.next();
   const url = new URL(context.request.url);
   
-  // Set correct MIME types for JavaScript files
-  if (url.pathname.endsWith('.js') || url.pathname.includes('/assets/')) {
-    const newResponse = new Response(response.body, response);
-    newResponse.headers.set('Content-Type', 'application/javascript; charset=utf-8');
-    return newResponse;
+  // For JavaScript files, set correct MIME type BEFORE calling next()
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.mjs')) {
+    const response = await context.next();
+    const newHeaders = new Headers(response.headers);
+    newHeaders.set('Content-Type', 'application/javascript; charset=utf-8');
+    
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: newHeaders
+    });
   }
   
-  return response;
+  // For CSS files
+  if (url.pathname.endsWith('.css')) {
+    const response = await context.next();
+    const newHeaders = new Headers(response.headers);
+    newHeaders.set('Content-Type', 'text/css; charset=utf-8');
+    
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: newHeaders
+    });
+  }
+  
+  return context.next();
 }
