@@ -1,15 +1,16 @@
-# Headers for Cloudflare Pages
-# Ensures correct MIME types for JavaScript modules
+# Cloudflare Pages headers for correct MIME types
 
 /assets/*
-  Content-Type: application/javascript; charset=utf-8
+  Content-Type: application/javascript
+
+/*
+  X-Content-Type-Options: nosniff
 
 /*.js
-  Content-Type: application/javascript; charset=utf-8
-
-/*.mjs
-  Content-Type: application/javascript; charset=utf-8
+  Content-Type: application/javascript
 
 /*.css
-  Content-Type: text/css; charset=utf-8
+  Content-Type: text/css
 
+/index.html
+  Cache-Control: no-cache
