@@ -22,7 +22,6 @@ function JamSession({ onStop }: JamSessionProps) {
   const visualEngineRef = useRef<VisualEngine | null>(null);
   const keyboardMapperRef = useRef<KeyboardMapper | null>(null);
   const [escapeProgress, setEscapeProgress] = useState(0);
-  const [selectedLayer, setSelectedLayer] = useState(1);
   const escapeStartRef = useRef<number | null>(null);
   const sessionStartRef = useRef<number>(Date.now());
   const keypressCountRef = useRef(0);
@@ -150,7 +149,6 @@ function JamSession({ onStop }: JamSessionProps) {
           case 'a':
             // A = Cycle layer (1→2→3→4→1)
             audioEngine.loopManager.cycleLayer();
-            setSelectedLayer(audioEngine.loopManager.getSelectedLayer());
             break;
           case 's':
             // S = Pitch Down
@@ -407,53 +405,6 @@ function JamSession({ onStop }: JamSessionProps) {
   return (
     <div className="jam-session">
       <canvas ref={canvasRef} className="jam-canvas" />
-      
-      {/* Loop Layer Indicator */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '20px',
-          left: '20px',
-          background: 'rgba(0, 0, 0, 0.7)',
-          padding: '12px 16px',
-          borderRadius: '12px',
-          border: '2px solid rgba(255, 255, 255, 0.3)',
-          color: '#fff',
-          fontSize: '14px',
-          fontFamily: 'monospace',
-          pointerEvents: 'none',
-          zIndex: 100,
-        }}
-      >
-        <div style={{ marginBottom: '6px', opacity: 0.7, fontWeight: 'bold' }}>LOOP LAYER</div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {[1, 2, 3, 4].map(layer => (
-            <div
-              key={layer}
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '6px',
-                background: layer === selectedLayer 
-                  ? 'linear-gradient(135deg, #ff6b6b, #ffd93d)' 
-                  : 'rgba(255, 255, 255, 0.1)',
-                border: layer === selectedLayer ? '2px solid #fff' : '2px solid rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 'bold',
-                fontSize: '16px',
-                color: layer === selectedLayer ? '#000' : '#fff',
-              }}
-            >
-              {layer}
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: '8px', fontSize: '10px', opacity: 0.5 }}>
-          Q:Play | A:Layer | WE:Pitch | SD:Tempo
-        </div>
-      </div>
       
       {escapeProgress > 0 && (
         <div className="escape-progress">
