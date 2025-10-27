@@ -1,0 +1,12 @@
+# Wrangler configuration for Cloudflare Pages
+name = "dinkytime"
+compatibility_date = "2025-01-01"
+
+[site]
+bucket = "./dist"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.js"]
+fallthrough = false
+
