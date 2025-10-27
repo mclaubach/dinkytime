@@ -24,10 +24,14 @@ export class KeyboardMapper {
    */
   private generateMappings(): void {
     // All the keys on a keyboard (letters, numbers, symbols)
-    const keys = 'abcdefghijklmnopqrstuvwxyz0123456789'.split('');
+    const allKeys = 'abcdefghijklmnopqrstuvwxyz0123456789'.split('');
     
-    // Pick ONE surprise key
-    this.surpriseKey = this.rng.choice(keys);
+    // RESERVE QWEASD for loop controls (but still give them random visuals!)
+    const controlKeys = ['q', 'w', 'e', 'a', 's', 'd'];
+    const randomKeys = allKeys.filter(k => !controlKeys.includes(k));
+    
+    // Pick ONE surprise key (not a control key)
+    this.surpriseKey = this.rng.choice(randomKeys);
     
     // Create weighted array for distribution
     const functionTypes: FunctionType[] = [];
@@ -38,8 +42,8 @@ export class KeyboardMapper {
       weights.push(weight);
     });
     
-    // Assign functions to each key
-    keys.forEach(key => {
+    // Assign functions to RANDOM keys (not control keys)
+    randomKeys.forEach(key => {
       const numFunctions = this.rng.int(1, 2); // 1-2 functions per key
       const functions: FunctionType[] = [];
       
@@ -57,7 +61,27 @@ export class KeyboardMapper {
       });
     });
     
-    console.log(`🎹 Keyboard Mapper initialized - Surprise key: ${this.surpriseKey}`);
+    // CONTROL KEYS get random VISUALS only (audio is handled specially)
+    controlKeys.forEach(key => {
+      // Pick visual-only functions (animations, shapes, etc)
+      const visualOptions: FunctionType[] = [
+        'animation-bounce',
+        'animation-move',
+        'animation-explode',
+        'shape-permanent',
+        'symbol-spawn',
+        'animal-spawn',
+      ];
+      const visualFunctions: FunctionType[] = [this.rng.choice(visualOptions)];
+      
+      this.mappings.set(key, {
+        key,
+        functions: visualFunctions,
+        params: this.generateParams(visualFunctions),
+      });
+    });
+    
+    console.log(`🎹 Keyboard Mapper initialized - QWEASD=controls, Surprise: ${this.surpriseKey}`);
   }
 
   /**

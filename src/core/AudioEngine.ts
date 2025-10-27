@@ -2,6 +2,7 @@ import * as Tone from 'tone';
 import { SeededRandom } from '../utils/random';
 import { CONFIG } from '../constants/config';
 import { SCALES, ROOT_NOTES } from '../constants/distributions';
+import { LoopLayerManager } from './LoopLayerManager';
 
 export type SynthMode = 'bass' | 'melody' | 'percussion' | 'chaos' | 'mixed';
 
@@ -9,6 +10,7 @@ export type SynthMode = 'bass' | 'melody' | 'percussion' | 'chaos' | 'mixed';
  * AudioEngine - The SOUL of Sound
  * 
  * This creates music from chaos, harmony from keyboard mashing
+ * Now with 4-layer loop control!
  */
 export class AudioEngine {
   private bassSynth: Tone.AMSynth;
@@ -17,9 +19,8 @@ export class AudioEngine {
   private chaosSynth: Tone.MetalSynth;
   private stringSynth: Tone.PolySynth;
   
-  // BEAT LOOPS!
-  private loops: Map<string, Tone.Loop> = new Map();
-  private activeLoops: Set<string> = new Set();
+  // LOOP LAYER SYSTEM!
+  public loopManager: LoopLayerManager;
   
   private activeNotes: Set<string> = new Set();
   private initialized = false;
@@ -28,6 +29,7 @@ export class AudioEngine {
 
   constructor(seed: number) {
     this.rng = new SeededRandom(seed);
+    this.loopManager = new LoopLayerManager(seed);
     
     // Setup synths with PERSONALITY
     this.bassSynth = new Tone.AMSynth({
@@ -76,6 +78,7 @@ export class AudioEngine {
     if (this.initialized) return;
     
     await Tone.start();
+    await this.loopManager.init();
     this.initialized = true;
     
     console.log('🎵 Audio Engine initialized - Let the music begin!');
@@ -255,22 +258,10 @@ export class AudioEngine {
   }
 
   /**
-   * START a beat loop with VARIETY! 🎵🎶
+   * START a beat loop - Adds to random layer, plays indefinitely! 🎵🎶
    */
   startBeatLoop(): void {
     if (!this.initialized) return;
-    
-    const loopId = `loop_${Date.now()}`;
-    
-    // 🥁 PERCUSSION PATTERNS
-    const percussionPatterns = [
-      { pattern: [1, 0, 0, 1, 0, 0, 1, 0], duration: '8n', name: 'Four on Floor' },
-      { pattern: [0, 0, 1, 0, 0, 0, 1, 0], duration: '8n', name: 'Snare Backbeat' },
-      { pattern: [1, 1, 0, 1, 1, 0, 1, 1], duration: '16n', name: 'Hi-hat Shuffle' },
-      { pattern: [1, 0, 1, 0, 1, 0, 0, 0], duration: '8n', name: 'Syncopated Kick' },
-      { pattern: [1, 1, 1, 0, 1, 1, 1, 0], duration: '16n', name: 'Rapid Fire' },
-      { pattern: [1, 0, 0, 0, 0, 1, 0, 0], duration: '8n', name: 'Sparse Kick' },
-    ];
     
     // 🎹 MELODIC PATTERNS (notes + pattern)
     const melodicPatterns = [
@@ -279,74 +270,33 @@ export class AudioEngine {
       { notes: ['C3', 'C3', 'G3', 'F3'], duration: '8n', synth: 'bass', name: 'Bass Walk' },
       { notes: ['A4', 'C5', 'E5', 'C5'], duration: '16n', synth: 'melody', name: 'Fast Arp' },
       { notes: ['C4', 'E4', 'G4', 'C5'], duration: '4n', synth: 'string', name: 'String Pad' },
+      { notes: ['D3', 'A3', 'F3', 'A3'], duration: '8n', synth: 'bass', name: 'Bass Groove' },
+      { notes: ['G4', 'B4', 'D5', 'B4'], duration: '16n', synth: 'melody', name: 'Quick Melody' },
     ];
     
-    // 🎲 Randomly choose pattern type
-    const patternType = this.rng.choice(['percussion', 'melodic', 'melodic']); // Favor melodic
+    // Choose random pattern
+    const chosen = this.rng.choice(melodicPatterns);
     
-    if (patternType === 'percussion') {
-      // PERCUSSION LOOP
-      const chosen = this.rng.choice(percussionPatterns);
-      let step = 0;
-      
-      const loop = new Tone.Loop((time) => {
-        if (chosen.pattern[step % chosen.pattern.length] === 1) {
-          this.percussionSynth.triggerAttackRelease('16n', time);
-        }
-        step++;
-      }, chosen.duration);
-      
-      loop.start(0);
-      this.loops.set(loopId, loop);
-      this.activeLoops.add(loopId);
-      
-      console.log(`🥁 Started: ${chosen.name}`);
-    } else {
-      // MELODIC LOOP
-      const chosen = this.rng.choice(melodicPatterns);
-      let step = 0;
-      
-      // Get the right synth
-      const synth = chosen.synth === 'bass' ? this.bassSynth :
-                    chosen.synth === 'string' ? this.stringSynth : this.melodySynth;
-      
-      const loop = new Tone.Loop((time) => {
-        const note = chosen.notes[step % chosen.notes.length];
-        if (chosen.synth === 'string') {
-          // Strings: longer sustain
-          (synth as Tone.PolySynth).triggerAttackRelease(note, '2n', time, 0.4);
-        } else {
-          // Other synths: shorter notes
-          (synth as Tone.AMSynth | Tone.FMSynth).triggerAttackRelease(note, '8n', time, 0.5);
-        }
-        step++;
-      }, chosen.duration);
-      
-      loop.start(0);
-      this.loops.set(loopId, loop);
-      this.activeLoops.add(loopId);
-      
-      console.log(`🎹 Started: ${chosen.name}`);
-    }
+    // Get the right synth
+    const synth = chosen.synth === 'bass' ? this.bassSynth :
+                  chosen.synth === 'string' ? this.stringSynth : this.melodySynth;
     
-    // Auto-stop after 30 seconds to avoid buildup
-    setTimeout(() => {
-      if (this.loops.has(loopId)) {
-        this.loops.get(loopId)?.stop();
-        this.loops.get(loopId)?.dispose();
-        this.loops.delete(loopId);
-        this.activeLoops.delete(loopId);
-      }
-    }, 30000);
+    // Add to a random layer (loops indefinitely now!)
+    const layerNum = this.loopManager.addLoopToRandomLayer(
+      synth as any,
+      chosen.notes,
+      chosen.duration
+    );
     
-    Tone.Transport.start();
+    console.log(`🎹 ${chosen.name} → Layer ${layerNum}`);
   }
 
   /**
-   * Modify active loops (pitch, tempo, filter) 🎚️
+   * Modify active loops (DEPRECATED - Use loopManager controls now)
    */
   modifyLoops(): void {
-    if (this.activeLoops.size === 0) return;
+    // Control loops now via loopManager.adjustPitch(), etc
+    return;
     
     const modification = this.rng.choice([
       'tempo-up',
@@ -455,13 +405,8 @@ export class AudioEngine {
     this.chaosSynth.dispose();
     this.stringSynth.dispose();
     
-    // Stop and dispose all loops
-    this.loops.forEach((loop) => {
-      loop.stop();
-      loop.dispose();
-    });
-    this.loops.clear();
-    this.activeLoops.clear();
+    // Dispose loop layer manager
+    this.loopManager.dispose();
     
     this.activeNotes.clear();
     Tone.Transport.stop();
