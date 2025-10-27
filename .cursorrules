@@ -1,0 +1,372 @@
+# BabyTime Cursor Development Rules
+
+## Project Context
+You are working on **BabyTime**, a chaotic, creative, musical-visual jamming experience for babies. The aesthetic is inspired by KidPix with a Blipblox synthesizer vibe. This is a Phase 1 build focused on core jamming functionality.
+
+## Core Principles
+1. **Fun over perfection**: Embrace chaos, weirdness, and art
+2. **Baby-focused**: High contrast, large elements, no scary sounds
+3. **Performance matters**: Maintain 60 FPS, low audio latency
+4. **Type safety**: Use TypeScript strict mode, no `any` unless necessary
+5. **Randomness with reproducibility**: Use seeded random for replay consistency
+
+## Technology Stack
+- **Frontend**: React 18 + TypeScript 5
+- **Build**: Vite 5
+- **Audio**: Tone.js 14 (Web Audio API)
+- **Graphics**: HTML5 Canvas 2D + Three.js (WebGL)
+- **State**: React hooks (no Redux/external state management)
+- **Storage**: Browser localStorage (Phase 1 only)
+
+## File Organization
+```
+src/
+├── components/       # React components
+├── core/            # Core engine classes
+├── hooks/           # Custom React hooks
+├── shaders/         # GLSL fragment shaders
+├── utils/           # Utility functions
+├── types/           # TypeScript type definitions
+├── constants/       # App constants and configs
+└── styles/          # CSS files
+```
+
+## Coding Standards
+
+### TypeScript
+- **Always use TypeScript strict mode**
+- **No implicit any**: Explicitly type all function parameters and returns
+- **Prefer interfaces over types** for object shapes
+- **Use enums for fixed sets** of values
+- **Export types separately** from implementations
+
+### React
+- **Functional components only**: No class components
+- **Hooks for everything**: Use custom hooks to encapsulate logic
+- **Avoid prop drilling**: Keep component trees shallow
+- **Memoization**: Use `useMemo` and `useCallback` for expensive operations
+- **Refs for DOM access**: Use `useRef` for canvas/container elements
+
+### Naming Conventions
+- **Components**: PascalCase (`ModalManager`, `JamSession`)
+- **Hooks**: camelCase with `use` prefix (`useAudioEngine`, `useKeyboardInput`)
+- **Core classes**: PascalCase (`AudioEngine`, `KeyboardMapper`)
+- **Utilities**: camelCase (`drawShape`, `getRandomColor`)
+- **Constants**: UPPER_SNAKE_CASE (`CONFIG`, `FUNCTION_DISTRIBUTION`)
+- **Files**: Match primary export name
+
+### Code Style
+- **2 spaces** for indentation
+- **Single quotes** for strings (except JSX attributes)
+- **Trailing commas** in multi-line objects/arrays
+- **Arrow functions** preferred over function declarations
+- **Destructure** props and state
+- **Early returns** to reduce nesting
+
+### Comments
+- **JSDoc for public APIs**: Document all exported functions/classes
+- **Explain "why" not "what"**: Code should be self-documenting
+- **TODOs**: Use `// TODO: description` for future work
+- **Complex algorithms**: Add explanatory comments
+
+## Performance Guidelines
+
+### Canvas Rendering
+- **Limit draw calls**: Batch similar operations
+- **Object pooling**: Reuse animated element objects
+- **Dirty regions**: Only redraw changed areas when possible
+- **Off-screen canvas**: Use for complex compositing
+- **Max elements**: Limit simultaneous animated elements to 20
+
+### Audio
+- **Preload samples**: Load all sounds on app init
+- **Limit polyphony**: Max 8 simultaneous notes
+- **Reuse instruments**: Pool Tone.js synth instances
+- **Throttle triggers**: 10ms minimum between keypresses
+
+### Memory Management
+- **Clean up**: Remove event listeners, stop timers on unmount
+- **Clear old data**: Prune recording buffer beyond 3 minutes
+- **Avoid memory leaks**: Properly dispose of Tone.js and Three.js objects
+- **Tone.js cleanup**: Call `.dispose()` on all synths and effects
+- **Three.js cleanup**: Dispose geometries, materials, textures with `.dispose()`
+- **Canvas cleanup**: Clear intervals/animation frames with cleanup functions
+
+## Architectural Patterns
+
+### Separation of Concerns
+- **Engines are pure classes**: No React dependencies
+- **Hooks wrap engines**: Bridge between React and core logic
+- **Components handle UI only**: Delegate logic to hooks/engines
+
+### Data Flow
+```
+User Input → KeyboardMapper → Engines → Canvas/Audio Output
+                                   ↓
+                           SessionRecorder → localStorage
+```
+
+### State Management
+- **Local state**: Use `useState` for component-specific state
+- **Ref state**: Use `useRef` for values that don't trigger re-renders
+- **Prop drilling**: Avoid by keeping hierarchy shallow
+- **No global state library**: React Context if needed
+
+## Randomness & Reproducibility
+
+### Seeded Random
+- **Always use `SeededRandom` class** for any randomness that affects output
+- **Store seed** with session for replay consistency
+- **Never use `Math.random()`** for game logic
+- **Only use `Math.random()`** for truly non-reproducible things (IDs)
+
+### Session Recording
+- **Record minimal data**: Keypresses + timestamp, not full canvas state
+- **Use seed for replay**: Re-run same random with same seed
+- **Keyframe canvas**: Store periodic snapshots for faster seeking
+
+## Audio Best Practices
+
+### Tone.js
+- **Start context**: Call `Tone.start()` after user gesture
+- **Stop all on cleanup**: Use `Tone.Transport.stop()` and dispose synths
+- **Volume control**: Set reasonable levels to avoid clipping
+- **Scheduling**: Use `Tone.now()` for accurate timing
+
+### Sound Design
+- **No harsh sounds**: Avoid anything jarring or scary
+- **Variety**: Mix musical notes with silly effects
+- **Layering**: Ensure multiple sounds don't create cacophony
+- **Baby-friendly**: Keep it playful and toy-like
+
+## Visual Best Practices
+
+### KidPix Aesthetic
+- **Thick black outlines**: 4px stroke on all shapes
+- **High contrast colors**: Bright, saturated palettes
+- **Simple shapes**: Large, chunky, recognizable
+- **Fun fonts**: Comic Sans or similar rounded fonts
+- **Textured fills**: Optional patterns/gradients
+
+### Canvas Drawing
+- **Save/restore context**: Always wrap transforms in `ctx.save()`/`ctx.restore()`
+- **Anti-aliasing**: Enable for smooth edges
+- **Image smoothing**: Disable for pixelated effects if desired
+- **Compositing**: Use blend modes creatively
+
+### WebGL Shaders
+- **Fragment shaders only**: Full-screen post-processing
+- **Uniform consistency**: Use standard uniform names (`time`, `resolution`, `texture`)
+- **Graceful degradation**: Skip shaders if WebGL unavailable
+- **Effect stacking**: Allow multiple effects to combine
+
+## Error Handling
+
+### User-Facing Errors
+- **Friendly messages**: No technical jargon
+- **Actionable guidance**: Tell user what to do
+- **Non-blocking**: Continue with degraded functionality when possible
+
+### Common Failures
+- **Web Audio locked**: Require user gesture to start (call `Tone.start()` on button click)
+- **WebGL unavailable**: Disable shader effects gracefully, app still works
+- **localStorage quota**: Warn and continue without saving sessions
+- **Asset load failure**: Use synthesized sounds as fallbacks
+- **MediaRecorder unavailable**: Skip audio recording, visual-only session
+
+### React Error Boundaries
+- **Wrap engines**: Use ErrorBoundary component around JamSession
+- **Fallback UI**: Show friendly "Something went wrong" with restart button
+- **Log errors**: Send to console.error with full stack trace
+
+### Async Operations
+- **Tone.js initialization**: Always `await Tone.start()` before playing sounds
+- **Asset loading**: Use Promise.all() with timeout for sample loading
+- **Handle rejections**: Wrap async calls in try-catch, provide fallbacks
+- **Loading states**: Show loading indicator while assets preload
+
+### Logging
+- **Development**: Use `console.log` liberally
+- **Production**: Remove or gate behind `import.meta.env.DEV` flag
+- **Errors**: Always log to console.error with context and stack trace
+
+## Testing Approach
+
+### Manual Testing
+- **Baby test**: Can a baby mash keys and have fun?
+- **Parent test**: Can parents easily start/stop sessions?
+- **Replay test**: Do recordings play back accurately?
+- **Performance test**: Maintain 60 FPS during chaos?
+
+### Browser Testing
+- **Chrome**: Primary target
+- **Firefox**: Secondary target
+- **Safari**: Test Web Audio compatibility
+- **Edge**: Ensure Chromium consistency
+
+### No Unit Tests (Phase 1)
+- Focus on getting it working first
+- Add tests in Phase 2 refactor
+
+## Security & Privacy
+
+### Phase 1 Guidelines
+- **No backend**: All data stays in browser
+- **No tracking**: No analytics or cookies
+- **No external calls**: Except CDN for libraries
+- **No PII**: Don't collect any user information
+
+## Accessibility
+
+### Phase 1 Scope
+- **Not a priority**: Babies don't use screen readers
+- **Future consideration**: Add keyboard shortcuts for parents
+- **Color contrast**: High contrast naturally accessible
+
+## Deployment
+
+### Cloudflare Pages Setup
+- **Static hosting**: Pure static files, no server needed
+- **Build environment**: Node 20 LTS
+- **HTTPS automatic**: Required for Web Audio API
+- **Global CDN**: Edge delivery, no cold starts
+
+### Build Process
+```bash
+npm run build      # Vite production build
+npm run preview    # Test production build locally
+# Deploy: npx wrangler pages deploy dist --project-name=dinkytime
+```
+
+## Git Workflow
+
+### Commit Messages
+```
+feat: Add shader effects to visual engine
+fix: Resolve audio latency issue on Firefox
+refactor: Extract shape drawing to utility
+docs: Update API documentation
+style: Format with Prettier
+```
+
+### Branch Strategy
+- **main**: Production-ready code
+- **feature/***: New features
+- **fix/***: Bug fixes
+- **Phase 1**: No need for complex branching
+
+## Phase 1 Scope Reminders
+
+### ✅ In Scope
+- Core jamming functionality
+- Recording and playback
+- Local storage
+- Canvas and audio export
+- Modal UI
+
+### ❌ Out of Scope
+- User authentication
+- Gallery/feed
+- Social sharing
+- Backend API
+- Database
+- Advanced editing
+
+## AI Assistance Guidelines
+
+When working with Cursor AI on this project:
+
+### What to Ask For
+- **Implementation help**: "Implement the AudioEngine class"
+- **Debugging**: "Why is the canvas not rendering?"
+- **Optimization**: "How can I reduce memory usage?"
+- **Code review**: "Is this KeyboardMapper implementation efficient?"
+
+### What to Provide
+- **Context**: Reference PROJECT_SPEC.md and TECHNICAL_ARCHITECTURE.md
+- **Examples**: Show existing code patterns to match
+- **Constraints**: Mention performance or compatibility requirements
+
+### What AI Should Do
+- **Follow these rules**: Adhere to coding standards above
+- **Match patterns**: Use existing code style
+- **Explain decisions**: Comment on non-obvious choices
+- **Think about babies**: Keep the end user in mind
+
+### What AI Should NOT Do
+- **Over-engineer**: Keep it simple for Phase 1
+- **Add dependencies**: Stick to approved tech stack
+- **Ignore performance**: Always consider rendering/audio latency
+- **Break reproducibility**: Don't introduce non-seeded randomness
+
+## Quick Reference
+
+### Starting Development
+```bash
+npm install           # Install dependencies
+npm run dev          # Start dev server
+```
+
+### Key Files to Read First
+1. `PROJECT_SPEC.md` - What we're building
+2. `TECHNICAL_ARCHITECTURE.md` - How it's structured
+3. `WORK_INSTRUCTIONS.md` - Step-by-step build guide
+
+### Most Important Classes
+- `KeyboardMapper`: Random key assignment
+- `AudioEngine`: Sound generation
+- `VisualEngine`: Canvas rendering
+- `SessionRecorder`: Event capture
+- `PlaybackEngine`: Session replay
+
+### Most Common Patterns
+```typescript
+// Custom hook pattern
+export function useMyEngine() {
+  const engineRef = useRef<MyEngine | null>(null);
+  
+  useEffect(() => {
+    engineRef.current = new MyEngine();
+    engineRef.current.init();
+    return () => engineRef.current?.cleanup();
+  }, []);
+  
+  return engineRef.current;
+}
+
+// Seeded random usage
+const rng = new SeededRandom(seed);
+const color = rng.choice(colors);
+const x = rng.range(0, width);
+
+// Canvas drawing
+ctx.save();
+ctx.fillStyle = color;
+ctx.strokeStyle = '#000000';
+ctx.lineWidth = 4;
+drawShape(ctx, 'circle', x, y, size, color, rotation);
+ctx.restore();
+
+// Tone.js note
+const synth = new Tone.Synth().toDestination();
+synth.triggerAttackRelease('C4', '8n');
+```
+
+## Fun Reminders
+- 🎨 **This is art software** - embrace the chaos!
+- 👶 **Babies are the users** - big, bright, simple
+- 🎵 **Sound is half the experience** - make it delightful
+- 🌈 **Randomness is a feature** - every jam is unique
+- ⚡ **Performance enables fun** - smooth = more joyful
+
+## Questions?
+Refer to:
+- `PROJECT_SPEC.md` for feature details
+- `TECHNICAL_ARCHITECTURE.md` for system design
+- `WORK_INSTRUCTIONS.md` for build steps
+- Or ask the AI assistant with context!
+
+---
+
+**Remember**: The goal is to create a delightful, chaotic, creative experience where babies can feel like artists and musicians by simply mashing keys. Keep it fun, keep it weird, keep it smooth.
+
